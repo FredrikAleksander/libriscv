@@ -4,9 +4,6 @@
 #include "riscvbase.hpp"
 #include "rv32i_instr.hpp"
 #include "rv64i_instr.hpp"
-#ifdef __GNUG__
-#include "rv32i.cpp"
-#endif
 
 namespace riscv
 {
@@ -106,11 +103,11 @@ namespace riscv
 			machine().memory.get_decoder_cache()[this->pc() / DecoderCache::DIVISOR];
 #ifndef RISCV_INSTR_CACHE_PREGEN
 		if (UNLIKELY(!cache_entry)) {
-			cache_entry = this->decode(instruction).handler;
+			cache_entry = DecoderCache::translate(this->decode(instruction).handler);
 		}
 #endif
 		// execute instruction
-		cache_entry(*this, instruction);
+		DecoderCache::lut<W> [cache_entry] (*this, instruction);
 # else
 		// decode & execute instruction directly
 		this->execute(instruction);

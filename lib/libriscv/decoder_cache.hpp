@@ -7,33 +7,33 @@ namespace riscv {
 
 union DecoderCache
 {
-	template <int W>
-	using handler = instruction_handler<W>;
+	using index_type = uint8_t;
 
-	template <int W>
-	inline auto& get(size_t idx) noexcept {
-		if constexpr (W == 4) {
-			return cache32[idx];
-		} else {
-			return cache64[idx];
-		}
+	inline index_type& get(size_t idx) noexcept {
+		return cache[idx];
+	}
+
+	inline index_type* get_base() noexcept {
+		return &cache[0];
 	}
 
 	template <int W>
-	inline auto* get_base() noexcept {
-		if constexpr (W == 4) {
-			return &cache32[0];
-		} else {
-			return &cache64[0];
-		}
+	static index_type translate(instruction_handler<W> h) noexcept;
+
+	template <int W>
+	inline void set(size_t idx, instruction_handler<W> h) noexcept {
+		get(idx) = translate<W>(h);
 	}
 
 	// we are making room for the maximum amount of
 	// compressed instructions, which are 16-bits
 	static constexpr size_t DIVISOR = (compressed_enabled) ? 2 : 4;
 
-	std::array<handler<4>, PageSize / DIVISOR> cache32 = {nullptr};
-	std::array<handler<8>, PageSize / DIVISOR> cache64;
+	std::array<index_type, PageSize / DIVISOR> cache {};
+
+	static constexpr size_t OPS = 256;
+	template <int W>
+	static const instruction_handler<W> lut [OPS];
 };
 
 }

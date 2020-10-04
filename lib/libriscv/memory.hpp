@@ -179,7 +179,7 @@ namespace riscv
 		size_t    m_exec_pagedata_size = 0;
 		address_t m_exec_pagedata_base = 0;
 #ifdef RISCV_INSTR_CACHE
-		instruction_handler<W>* m_exec_decoder = nullptr;
+		uint8_t* m_exec_decoder = nullptr;
 		DecoderCache* m_decoder_cache = nullptr;
 #endif
 

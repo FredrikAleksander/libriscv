@@ -51,3 +51,8 @@ namespace riscv
 		return std::string(buffer, len);
 	}
 }
+
+#ifdef RISCV_INSTR_CACHE
+#define RVIARCH 4
+#include "decoder_translation.cpp"
+#endif
