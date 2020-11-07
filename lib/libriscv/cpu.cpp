@@ -64,72 +64,88 @@ namespace riscv
 		return read_next_instruction_slowpath();
 	}
 
-	template<int W>
-	void CPU<W>::simulate()
+	template <int W>
+	inline void CPU<W>::increment_pc(format_t instruction) noexcept
 	{
+		if constexpr (compressed_enabled)
+			   registers().pc += instruction.length();
+		else
+			   registers().pc += 4;
+   }
+
+	template <int W>
+	uint64_t CPU<W>::simulate(const uint64_t ntimes)
+	{
+		uint64_t i = 0;
 		format_t instruction;
-#ifdef RISCV_DEBUG
-		this->break_checks();
 
-		instruction = this->read_next_instruction();
-		const auto& handler = this->decode(instruction);
-		// instruction logging
-		if (machine().verbose_instructions)
+		for (m_stopped = false; i < ntimes && !m_stopped; i++)
 		{
-			const auto string = isa_type<W>::to_string(*this, instruction, handler);
-			printf("%s\n", string.c_str());
-		}
+#ifdef RISCV_DEBUG
+			this->break_checks();
 
-		// execute instruction
-		handler.handler(*this, instruction);
-#else
-# ifdef RISCV_INSTR_CACHE
-#  ifndef RISCV_INBOUND_JUMPS_ONLY
-		if (LIKELY(this->pc() >= m_exec_begin && this->pc() < m_exec_end)) {
-#  endif
-			instruction = format_t { *(uint32_t*) &m_exec_data[this->pc()] };
-			// retrieve instructions directly from the constant cache
-			auto& cache_entry =
-				machine().memory.get_decoder_cache()[this->pc() / DecoderCache<W>::DIVISOR];
-		#ifndef RISCV_INSTR_CACHE_PREGEN
-			if (UNLIKELY(!cache_entry)) {
-				cache_entry = this->decode(instruction).handler;
+			instruction = this->read_next_instruction();
+			const auto& handler = this->decode(instruction);
+			// instruction logging
+			if (machine().verbose_instructions)
+			{
+				const auto string =
+					isa_type<W>::to_string(*this, instruction, handler);
+				printf("%s\n", string.c_str());
 			}
-		#endif
-			// execute instruction
-			cache_entry(*this, instruction);
-#  ifndef RISCV_INBOUND_JUMPS_ONLY
-		} else {
-			instruction = read_next_instruction_slowpath();
+
+		   // execute instruction
+		   handler.handler(*this, instruction);
+#else
+	   # ifdef RISCV_INSTR_CACHE
+		   #ifndef RISCV_INBOUND_JUMPS_ONLY
+			   if (LIKELY(this->pc() >= m_exec_begin && this->pc() < m_exec_end)) {
+		   #endif
+				   instruction = format_t { *(uint32_t*) &m_exec_data[this->pc()] };
+				   // retrieve instructions directly from the constant cache
+				   auto& cache_entry =
+					   machine().memory.get_decoder_cache()[this->pc() / DecoderCache<W>::DIVISOR];
+			   #ifndef RISCV_INSTR_CACHE_PREGEN
+					if (UNLIKELY(!cache_entry)) {
+						cache_entry = this->decode(instruction).handler;
+					}
+				#endif
+					// execute instruction
+					cache_entry(*this, instruction);
+			#ifndef RISCV_INBOUND_JUMPS_ONLY
+				} else {
+				   instruction = read_next_instruction_slowpath();
+				   // decode & execute instruction directly
+				   this->execute(instruction);
+				}
+			#endif
+		# else
+			instruction = this->read_next_instruction();
 			// decode & execute instruction directly
 			this->execute(instruction);
-		}
-#  endif
-# else
-		instruction = this->read_next_instruction();
-		// decode & execute instruction directly
-		this->execute(instruction);
-# endif
+		# endif
 #endif
-		// increment instruction counter
-		this->m_counter++;
 
 #ifdef RISCV_DEBUG
-		if (UNLIKELY(machine().verbose_registers))
-		{
-			auto regs = this->registers().to_string();
-			printf("\n%s\n\n", regs.c_str());
-			if (UNLIKELY(machine().verbose_fp_registers)) {
-				printf("%s\n", registers().flp_to_string().c_str());
+			if (UNLIKELY(machine().verbose_registers))
+			{
+				auto regs = this->registers().to_string();
+				printf("\n%s\n\n", regs.c_str());
+				if (UNLIKELY(machine().verbose_fp_registers)) {
+					printf("%s\n", registers().flp_to_string().c_str());
+				}
 			}
-		}
+			// increment instruction counter
+			this->m_counter += 1;
 #endif
-
-		// increment PC
-		if constexpr (compressed_enabled)
-			registers().pc += instruction.length();
-		else
-			registers().pc += 4;
+			// increment PC
+			this->increment_pc(instruction);
+		}
+#ifndef RISCV_DEBUG
+		// increment instruction counter just before leaving
+		this->m_counter += i;
+#endif
+		return i;
 	}
 
 	template<int W> __attribute__((cold))

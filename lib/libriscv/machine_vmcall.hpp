@@ -56,7 +56,7 @@ address_type<W> Machine<W>::preempt(address_t call_addr, Args&&... args)
 	if constexpr (StoreRegs) {
 		regs = cpu.registers();
 	}
-	const bool is_stopped = this->m_stopped;
+       const bool is_stopped = cpu.stopped();
 	// we need to make some stack room
 	this->cpu.reg(RISCV::REG_SP) -= 1024u;
 	// setup calling convention
@@ -66,14 +66,14 @@ address_type<W> Machine<W>::preempt(address_t call_addr, Args&&... args)
 	try {
 		this->simulate<Throw>(MAXI);
 	} catch (...) {
-		this->m_stopped = is_stopped;
+               cpu.stop(is_stopped);
 		if constexpr (StoreRegs) {
 			cpu.registers() = regs;
 		}
 		throw;
 	}
 	// restore registers and return value
-	this->m_stopped = is_stopped;
+       cpu.stop(is_stopped);
 	const auto retval = cpu.reg(RISCV::REG_ARG0);
 	if constexpr (StoreRegs) {
 		cpu.registers() = regs;

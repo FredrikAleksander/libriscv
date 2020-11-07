@@ -20,12 +20,15 @@ namespace riscv
 		using breakpoint_t = Function<void(CPU<W>&)>; // machine instruction
 		using instruction_t = Instruction<W>;
 
-		void simulate();
+		uint64_t simulate(uint64_t times);
+		void stop(bool = true);
+		bool stopped() const noexcept { return m_stopped; }
 		void reset();
 		void reset_stack_pointer() noexcept;
 
 		address_t pc() const noexcept { return registers().pc; }
 		void increment_pc(int delta) { registers().pc += delta; }
+        void increment_pc(format_t) noexcept;
 		constexpr void jump(address_t);
 
 		uint64_t instruction_counter() const noexcept { return m_counter; }
@@ -77,8 +80,9 @@ namespace riscv
 		CPU(Machine<W>&);
 	private:
 		Registers<W> m_regs;
-		uint64_t     m_counter = 0;
 		Machine<W>&  m_machine;
+               bool         m_stopped = false;
+               uint64_t     m_counter = 0;
 
 		format_t read_next_instruction();
 		format_t read_next_instruction_slowpath() COLD_PATH();

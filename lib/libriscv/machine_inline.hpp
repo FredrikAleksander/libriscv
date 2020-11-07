@@ -34,25 +34,19 @@ inline Machine<W>::~Machine()
 
 template <int W>
 inline void Machine<W>::stop(bool v) noexcept {
-	m_stopped = v;
+	cpu.stop(v);
 }
 template <int W>
 inline bool Machine<W>::stopped() const noexcept {
-	return m_stopped;
+	return cpu.stopped();
 }
 
 template <int W>
 template <bool Throw>
 inline void Machine<W>::simulate(uint64_t max_instr)
 {
-	this->m_stopped = false;
 	if (max_instr != 0) {
-		uint64_t i = 0;
-		for (; i < max_instr; i++) {
-			cpu.simulate();
-			if (UNLIKELY(this->stopped()))
-				return;
-		}
+		uint64_t i = cpu.simulate(max_instr);
 		if constexpr (Throw) {
 			if (UNLIKELY(i == max_instr)) {
 				throw MachineTimeoutException(MAX_INSTRUCTIONS_REACHED,
@@ -61,9 +55,7 @@ inline void Machine<W>::simulate(uint64_t max_instr)
 		}
 	}
 	else {
-		while (LIKELY(!this->stopped())) {
-			cpu.simulate();
-		}
+		cpu.simulate(UINT64_MAX);
 	}
 }
 

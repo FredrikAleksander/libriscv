@@ -11,6 +11,12 @@ inline void CPU<W>::reset_stack_pointer() noexcept
 	this->reg(RISCV::REG_SP) = machine().memory.stack_initial();
 }
 
+template <int W>
+inline void CPU<W>::stop(bool b)
+{
+	m_stopped = b;
+}
+
 template<int W> constexpr
 inline void CPU<W>::jump(const address_t dst)
 {
